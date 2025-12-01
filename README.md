@@ -2,34 +2,54 @@
 
 > Sistema de gestión farmacéutica profesional con Spring Boot, JWT y MySQL
 
-[![Tests](https://img.shields.io/badge/tests-349%20passing-brightgreen)](./run-tests.sh)
-[![Coverage](https://img.shields.io/badge/coverage-65%25%20security-blue)](./ver-cobertura.sh)
+[![Tests](https://img.shields.io/badge/tests-222%20passing-brightgreen)](./run-tests.sh)
+[![Coverage](https://img.shields.io/badge/coverage-66%25%20services-blue)](./ver-cobertura.sh)
+[![Build](https://img.shields.io/badge/build-passing-success)](./pom.xml)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](./pom.xml)
 [![Java](https://img.shields.io/badge/Java-17-orange)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.1.5-green)](https://spring.io/projects/spring-boot)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)](https://www.mysql.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED)](./docker/)
 [![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC)](./terraform/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF)](./.github/workflows/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## 🚀 Características
 
-### Aplicación
-- ✅ **Autenticación JWT** con refresh tokens
-- ✅ **Sistema de roles** con 20 roles predefinidos
-- ✅ **Autorización granular** basada en permisos
-- ✅ **349 tests automatizados** (100% pasando)
-- ✅ **65% cobertura** en Security/JWT
-- ✅ **Rate limiting** por rol
-- ✅ **Auditoría completa** de operaciones
-- ✅ **CORS configurado** para frontend
+### 🔐 Seguridad y Autenticación
+- ✅ **Autenticación JWT** con refresh tokens y rotación automática
+- ✅ **Sistema de roles** con 20 roles predefinidos (ADMIN, CAJERO, VENDEDOR, etc.)
+- ✅ **Autorización granular** basada en permisos por endpoint
+- ✅ **Rate limiting** por rol para prevenir abuso
+- ✅ **Auditoría completa** de operaciones críticas
+- ✅ **CORS configurado** para integración con frontend Ionic
+- ✅ **BCrypt hashing** para contraseñas
 
-### DevOps & Cloud
-- ✅ **Infrastructure as Code** con Terraform
-- ✅ **CI/CD Automático** con GitHub Actions
-- ✅ **Deploy en Google Cloud** (10-15 min)
-- ✅ **Docker Compose** para desarrollo local
-- ✅ **Tests automáticos** en cada PR
-- ✅ **Análisis de seguridad** integrado
-- ✅ **Preview de cambios** de infraestructura
+### 📊 Gestión Farmacéutica
+- ✅ **CRUD completo** de productos, ventas, compras, clientes y proveedores
+- ✅ **Control de inventario** con alertas de stock mínimo
+- ✅ **Sistema de ventas** con cálculo automático de totales e impuestos
+- ✅ **Gestión de compras** a proveedores con actualización de inventario
+- ✅ **Reportes y estadísticas** en tiempo real
+- ✅ **Movimientos de inventario** con trazabilidad completa
+
+### 🧪 Calidad y Testing
+- ✅ **222 tests automatizados** (100% pasando)
+- ✅ **66% cobertura** en Services
+- ✅ **61% cobertura** en Controllers
+- ✅ **Build en 6.8s** con Maven
+- ✅ **JaCoCo** para análisis de cobertura
+- ✅ **Tests unitarios e integración** con JUnit 5 y Mockito
+
+### 🚀 DevOps & Cloud
+- ✅ **Infrastructure as Code** con Terraform para Google Cloud
+- ✅ **CI/CD Automático** con GitHub Actions (3 workflows)
+- ✅ **Deploy en Google Cloud** (Compute Engine + Cloud SQL)
+- ✅ **Docker Compose** para desarrollo local y producción
+- ✅ **Tests automáticos** en cada PR y push
+- ✅ **Undertow** como servidor web (optimizado para producción)
+- ✅ **Health checks** configurados para alta disponibilidad
+- ✅ **Variables de entorno** seguras con .env
 
 ## 📋 Tabla de Contenidos
 
@@ -100,44 +120,74 @@ Ver guía completa: [docs/TERRAFORM-SETUP.md](./docs/TERRAFORM-SETUP.md)
 
 ## 🛠️ Requisitos
 
-- **Java 17** o superior
-- **Maven 3.9+**
-- **MySQL 8.0+**
-- **Docker** (opcional, para despliegue)
+### Para Desarrollo
+- **Java 17** (OpenJDK o Oracle JDK)
+- **Maven 3.9+** para build y gestión de dependencias
+- **MySQL 8.0+** (local o Docker)
+- **Git** para control de versiones
+
+### Para Producción (Adicional)
+- **Docker 20+** y Docker Compose 2.0+
+- **Cuenta Google Cloud** (para deploy con Terraform)
+- **Terraform 1.0+** (para IaC)
 
 ## 📦 Instalación
 
-### 1. Clonar el repositorio
+### Opción 1: Quick Start con Docker (Recomendado)
 
 ```bash
-git clone https://github.com/tu-usuario/farmacontrol-api.git
-cd farmacontrol-api
+# 1. Clonar el repositorio
+git clone https://github.com/JAlcon00/gestpharmaapp.git
+cd gestpharmaapp/FarmaApi
+
+# 2. Iniciar todo con Docker Compose
+cd docker
+docker-compose up -d
+
+# 3. Verificar que todo esté corriendo
+docker ps
+
+# ✅ API disponible en http://localhost:8080
+# ✅ Swagger UI en http://localhost:8080/swagger-ui.html
 ```
 
-### 2. Configurar variables de entorno
+### Opción 2: Instalación Manual
+
+#### 1. Clonar y configurar
 
 ```bash
-# Copiar plantilla de configuración
+git clone https://github.com/JAlcon00/gestpharmaapp.git
+cd gestpharmaapp/FarmaApi
+
+# Copiar y configurar variables de entorno
 cp .env.example .env
-
-# Editar .env con tus credenciales
-nano .env
+nano .env  # Editar con tus credenciales
 ```
 
-### 3. Crear base de datos
+#### 2. Configurar Base de Datos
 
 ```bash
-# Conectar a MySQL
+# Opción A: Con script automático (recomendado)
+./start-test-db.sh
+
+# Opción B: Manual
 mysql -u root -p
-
-# Ejecutar script de inicialización
-source src/java/database_schema.sql
+mysql> CREATE DATABASE farmacontrol;
+mysql> source src/java/database_schema.sql;
+mysql> exit;
 ```
 
-### 4. Compilar el proyecto
+#### 3. Compilar y ejecutar
 
 ```bash
+# Compilar
 mvn clean install -DskipTests
+
+# Ejecutar
+mvn spring-boot:run
+
+# O ejecutar el JAR generado
+java -jar target/farmacontrol-api-1.0.0.jar
 ```
 
 ## ⚙️ Configuración
@@ -189,23 +239,38 @@ docker-compose up -d
 ### Ejecutar todos los tests
 
 ```bash
+# Tests completos
 ./run-tests.sh
+
+# O con Maven
+mvn clean test
 ```
 
 ### Ver reporte de cobertura
 
 ```bash
+# Generar reporte HTML
 ./ver-cobertura.sh
+
+# O manualmente
+mvn clean test jacoco:report
+open target/site/jacoco/index.html
 ```
 
-### Resultados
+### Resultados Actuales ✅
 
-- **349 tests** pasando (100%)
-- **Cobertura Services**: 66%
-- **Cobertura Security**: 65%
-- **Cobertura Controllers**: 61%
+```bash
+[INFO] Tests run: 222, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time: 6.822 s
+```
 
-Ver [REPORTE-CALIDAD-FINAL.md](./REPORTE-CALIDAD-FINAL.md) para detalles.
+**Cobertura por módulo:**
+- **Services**: 66% (lógica de negocio)
+- **Controllers**: 61% (endpoints REST)
+- **Security**: 65% (JWT y autenticación)
+
+Ver [docs/REPORTE-CALIDAD-FINAL.md](./docs/REPORTE-CALIDAD-FINAL.md) para análisis detallado.
 
 ## 📡 API Endpoints
 
@@ -315,23 +380,30 @@ Developer → Push to main → GitHub Actions → Terraform → Google Cloud →
 ### Stack Tecnológico
 
 **Backend:**
-- Java 17
-- Spring Boot 3.1.5
-- Spring Security + JWT
-- MySQL 8.0
-- Maven 3.9+
+- **Java 17** (OpenJDK)
+- **Spring Boot 3.1.5** con Undertow
+- **Spring Security 6.1.5** + JWT (0.12.3)
+- **MySQL 8.0.33** con MySQL Connector J
+- **Maven 3.9+** para gestión de dependencias
+- **SpringDoc OpenAPI 2.2.0** (Swagger UI)
+- **Lombok** para reducir boilerplate
+- **BCrypt** para hashing de contraseñas
 
 **DevOps:**
-- Docker + Docker Compose
-- Terraform (Infrastructure as Code)
-- GitHub Actions (CI/CD)
-- Google Cloud Platform (Compute Engine)
+- **Docker 20+** + Docker Compose 3.8
+- **Terraform** (Infrastructure as Code para GCP)
+- **GitHub Actions** (3 workflows: CI, CD, Terraform Plan)
+- **Google Cloud Platform:**
+  - Compute Engine (VMs)
+  - Cloud SQL (MySQL)
+  - VPC Networks
 
-**Tests:**
-- JUnit 5
-- Mockito
-- Spring Test
-- JaCoCo (Coverage)
+**Tests y Calidad:**
+- **JUnit 5** (Jupiter)
+- **Mockito** para mocking
+- **Spring Boot Test** para integración
+- **JaCoCo 0.8.11** para cobertura de código
+- **Maven Surefire** para ejecución de tests
 
 ### Estructura del Proyecto
 
@@ -404,12 +476,26 @@ Ver [MATRIZ-VISUAL-ROLES.md](./MATRIZ-VISUAL-ROLES.md) para jerarquía completa.
 
 ## 📊 Estado del Proyecto
 
-- ✅ Backend completo y funcional
-- ✅ Tests automatizados (349 tests)
-- ✅ Documentación completa
-- ✅ Docker ready
-- ✅ Producción-ready
-- ⏳ Frontend en desarrollo (Ionic/Angular)
+### Backend (FarmaControl API)
+- ✅ **API REST completa** con 40+ endpoints
+- ✅ **222 tests automatizados** (100% pasando)
+- ✅ **Documentación completa** (Swagger + Markdown)
+- ✅ **Docker ready** con compose para dev y prod
+- ✅ **CI/CD configurado** con GitHub Actions
+- ✅ **Producción-ready** desplegable en Google Cloud
+
+### Frontend (GestPharma App)
+- ✅ **Ionic 7 + Angular 18** completamente funcional
+- ✅ **Autenticación dual** (JWT + Google OAuth)
+- ✅ **Sistema POS** con carrito de compras
+- ✅ **Gestión completa** de inventario, ventas, clientes
+- ✅ **Reportes en PDF** con jsPDF
+- ✅ **Responsive design** para móvil y tablet
+
+### Integración
+- ✅ **Frontend y Backend integrados** y funcionando
+- ✅ **Sincronización en tiempo real**
+- ✅ **Sistema de roles** implementado end-to-end
 
 ## 🤝 Contribuir
 
