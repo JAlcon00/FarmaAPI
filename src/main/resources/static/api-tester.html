@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmaControl API - Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .endpoint-group {
+            margin-bottom: 30px;
+            border: 1px solid #e1e8ed;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .group-header {
+            background: #34495e;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .endpoint {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        .endpoint:last-child {
+            border-bottom: none;
+        }
+        .method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 10px;
+            min-width: 60px;
+            text-align: center;
+        }
+        .get { background: #28a745; color: white; }
+        .post { background: #007bff; color: white; }
+        .put { background: #ffc107; color: black; }
+        .delete { background: #dc3545; color: white; }
+        .url {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        .description {
+            color: #666;
+            margin-top: 8px;
+        }
+        .test-button {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-right: 10px;
+        }
+        .test-button:hover {
+            background: #138496;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #17a2b8;
+            display: none;
+        }
+        .response pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status.success { color: #28a745; }
+        .status.error { color: #dc3545; }
+        .json-input {
+            width: 100%;
+            min-height: 80px;
+            font-family: 'Courier New', monospace;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 FarmaControl API - Interfaz de Pruebas</h1>
+        
+        <div class="endpoint-group">
+            <div class="group-header">👥 ROLES</div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <div class="url">http://localhost:8080/api/roles</div>
+                <div class="description">Obtiene todos los roles del sistema</div>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/roles', null, 'roles-get')">Probar</button>
+                <div id="roles-get" class="response"></div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <div class="url">http://localhost:8080/api/roles</div>
+                <div class="description">Crea un nuevo rol</div>
+                <textarea id="roles-post-body" class="json-input" placeholder='{"nombre": "NUEVO_ROL", "descripcion": "Descripción del rol"}'></textarea>
+                <button class="test-button" onclick="testEndpoint('POST', '/api/roles', 'roles-post-body', 'roles-post')">Probar</button>
+                <div id="roles-post" class="response"></div>
+            </div>
+        </div>
+
+        <div class="endpoint-group">
+            <div class="group-header">📁 CATEGORÍAS</div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <div class="url">http://localhost:8080/api/categorias</div>
+                <div class="description">Obtiene todas las categorías de productos</div>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/categorias', null, 'categorias-get')">Probar</button>
+                <div id="categorias-get" class="response"></div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <div class="url">http://localhost:8080/api/categorias</div>
+                <div class="description">Crea una nueva categoría</div>
+                <textarea id="categorias-post-body" class="json-input" placeholder='{"nombre": "Nueva Categoría", "descripcion": "Descripción de la categoría"}'></textarea>
+                <button class="test-button" onclick="testEndpoint('POST', '/api/categorias', 'categorias-post-body', 'categorias-post')">Probar</button>
+                <div id="categorias-post" class="response"></div>
+            </div>
+        </div>
+
+        <div class="endpoint-group">
+            <div class="group-header">💊 PRODUCTOS</div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <div class="url">http://localhost:8080/api/productos</div>
+                <div class="description">Obtiene todos los productos del inventario</div>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/productos', null, 'productos-get')">Probar</button>
+                <div id="productos-get" class="response"></div>
+            </div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <div class="url">http://localhost:8080/api/productos?stock=bajo</div>
+                <div class="description">Obtiene productos con stock bajo</div>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/productos?stock=bajo', null, 'productos-stock-bajo')">Probar</button>
+                <div id="productos-stock-bajo" class="response"></div>
+            </div>
+        </div>
+
+        <div class="endpoint-group">
+            <div class="group-header">👤 CLIENTES</div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <div class="url">http://localhost:8080/api/clientes</div>
+                <div class="description">Obtiene todos los clientes registrados</div>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/clientes', null, 'clientes-get')">Probar</button>
+                <div id="clientes-get" class="response"></div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <div class="url">http://localhost:8080/api/clientes</div>
+                <div class="description">Crea un nuevo cliente</div>
+                <textarea id="clientes-post-body" class="json-input" placeholder='{"nombre": "Juan Pérez", "email": "juan@email.com", "telefono": "123456789", "direccion": "Calle 123"}'></textarea>
+                <button class="test-button" onclick="testEndpoint('POST', '/api/clientes', 'clientes-post-body', 'clientes-post')">Probar</button>
+                <div id="clientes-post" class="response"></div>
+            </div>
+        </div>
+
+        <div class="endpoint-group">
+            <div class="group-header">🛒 VENTAS</div>
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <div class="url">http://localhost:8080/api/ventas</div>
+                <div class="description">Obtiene todas las ventas registradas</div>
+                <button class="test-button" onclick="testEndpoint('GET', '/api/ventas', null, 'ventas-get')">Probar</button>
+                <div id="ventas-get" class="response"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testEndpoint(method, url, bodyId, responseId) {
+            const responseDiv = document.getElementById(responseId);
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = '<div class="status">⏳ Ejecutando...</div>';
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (bodyId && document.getElementById(bodyId)) {
+                    const bodyContent = document.getElementById(bodyId).value.trim();
+                    if (bodyContent) {
+                        options.body = bodyContent;
+                    }
+                }
+                
+                const response = await fetch(url, options);
+                const data = await response.text();
+                
+                let formattedData;
+                try {
+                    formattedData = JSON.stringify(JSON.parse(data), null, 2);
+                } catch (e) {
+                    formattedData = data;
+                }
+                
+                const statusClass = response.ok ? 'success' : 'error';
+                responseDiv.innerHTML = `
+                    <div class="status ${statusClass}">
+                        ${response.status} ${response.statusText}
+                    </div>
+                    <pre>${formattedData}</pre>
+                `;
+            } catch (error) {
+                responseDiv.innerHTML = `
+                    <div class="status error">❌ Error de conexión</div>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

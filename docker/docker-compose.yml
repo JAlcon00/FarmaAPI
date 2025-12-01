@@ -1,0 +1,74 @@
+# Docker Compose para Google Cloud - Configuración de producción
+version: '3.8'
+
+services:
+  # API FarmaControl
+  farmaapi:
+    build:
+      context: ..  # Apunta a la raíz del proyecto
+      dockerfile: docker/Dockerfile  # Ruta correcta desde raíz
+    image: farmacontrol-api:latest
+    container_name: farmacontrol-api
+    ports:
+      - "8080:8080"
+    environment:
+      # Variables de entorno desde docker-compose (NO desde archivo .env)
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+      - SERVER_PORT=8080
+      - DB_HOST=mysql-db
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-farmacontrol}
+      - DB_USER=${DB_USER:-farmacontrol_user}
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - JWT_SECRET=MiFarmaControlSecretKeyParaJWT2025DebeSerLargaYSegura256BitsMinimo12345
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - farma-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # Base de datos MySQL
+  mysql-db:
+    image: mysql:8.0
+    container_name: farmacontrol-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_changeme}
+      MYSQL_DATABASE: ${DB_NAME:-farmacontrol}
+      MYSQL_USER: ${DB_USER:-farmacontrol_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../src/java/database_schema_test.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - farma-network
+    restart: unless-stopped
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=200
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_changeme}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  farma-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local

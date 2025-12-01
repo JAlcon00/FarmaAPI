@@ -1,0 +1,162 @@
+name: CD - Deploy a Google Cloud
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Permitir ejecución manual
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
+  TF_VERSION: '1.6.0'
+
+jobs:
+  deploy:
+    name: 🚀 Deploy to Google Cloud
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☁️ Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: 🔧 Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: 📦 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: 🔐 Create terraform.tfvars
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars <<EOF
+          project_id  = "${{ secrets.GCP_PROJECT_ID }}"
+          region      = "${{ secrets.GCP_REGION || 'us-central1' }}"
+          zone        = "${{ secrets.GCP_ZONE || 'us-central1-a' }}"
+          environment = "${{ secrets.ENVIRONMENT || 'production' }}"
+          
+          machine_type   = "${{ secrets.MACHINE_TYPE || 'e2-medium' }}"
+          boot_disk_size = ${{ secrets.BOOT_DISK_SIZE || 20 }}
+          boot_disk_type = "${{ secrets.BOOT_DISK_TYPE || 'pd-balanced' }}"
+          
+          allowed_ips = ["0.0.0.0/0"]
+          
+          use_cloud_sql = false
+          
+          db_name     = "${{ secrets.DB_NAME || 'farmacontrol' }}"
+          db_user     = "${{ secrets.DB_USER || 'farmacontrol_user' }}"
+          db_password = "${{ secrets.DB_PASSWORD }}"
+          mysql_root_password = "${{ secrets.MYSQL_ROOT_PASSWORD }}"
+          
+          jwt_secret             = "${{ secrets.JWT_SECRET }}"
+          jwt_expiration         = ${{ secrets.JWT_EXPIRATION || 86400000 }}
+          jwt_refresh_expiration = ${{ secrets.JWT_REFRESH_EXPIRATION || 604800000 }}
+          
+          server_port = ${{ secrets.SERVER_PORT || 8080 }}
+          
+          github_repo   = "${{ github.server_url }}/${{ github.repository }}.git"
+          github_branch = "${{ github.ref_name }}"
+          EOF
+
+      - name: 🔧 Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: 📋 Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: 🚀 Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: 📊 Get Outputs
+        working-directory: terraform
+        id: tf_outputs
+        run: |
+          echo "vm_ip=$(terraform output -raw vm_external_ip)" >> $GITHUB_OUTPUT
+          echo "api_url=$(terraform output -raw api_url)" >> $GITHUB_OUTPUT
+          echo "health_url=$(terraform output -raw health_check_url)" >> $GITHUB_OUTPUT
+
+      - name: ⏳ Wait for API to be ready
+        run: |
+          echo "Waiting for API to be ready..."
+          MAX_WAIT=300
+          COUNTER=0
+          
+          until curl -sf ${{ steps.tf_outputs.outputs.health_url }} > /dev/null 2>&1; do
+            if [ $COUNTER -ge $MAX_WAIT ]; then
+              echo "❌ API did not start within $MAX_WAIT seconds"
+              exit 1
+            fi
+            
+            echo "Waiting... ($COUNTER/$MAX_WAIT)"
+            sleep 10
+            COUNTER=$((COUNTER + 10))
+          done
+          
+          echo "✅ API is ready!"
+
+      - name: 🧪 Test deployment
+        run: |
+          echo "Testing API endpoints..."
+          
+          # Health check
+          curl -f ${{ steps.tf_outputs.outputs.health_url }} || exit 1
+          
+          echo "✅ Health check passed"
+
+      - name: 📊 Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📍 Deployment Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **VM IP**: \`${{ steps.tf_outputs.outputs.vm_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **API URL**: ${{ steps.tf_outputs.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Health Check**: ${{ steps.tf_outputs.outputs.health_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: \`${{ secrets.ENVIRONMENT || 'production' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: \`${{ secrets.GCP_REGION || 'us-central1' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Quick Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Swagger UI](${{ steps.tf_outputs.outputs.api_url }}/../swagger-ui.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Google Cloud Console](https://console.cloud.google.com/compute/instances?project=${{ env.PROJECT_ID }})" >> $GITHUB_STEP_SUMMARY
+
+      - name: 💬 Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🚀 Deployment Preview\n\n` +
+                    `- **API URL**: ${{ steps.tf_outputs.outputs.api_url }}\n` +
+                    `- **Health**: ${{ steps.tf_outputs.outputs.health_url }}\n` +
+                    `- **IP**: \`${{ steps.tf_outputs.outputs.vm_ip }}\``
+            })
+
+  notify:
+    name: 📧 Notificación
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    
+    steps:
+      - name: 📧 Send notification
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+            exit 1
+          fi

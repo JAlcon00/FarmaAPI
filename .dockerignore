@@ -1,0 +1,51 @@
+# Archivos innecesarios para Docker# Archivos innecesarios para Docker
+
+.git.git
+
+.gitignore.gitignore
+
+*.md*.md
+
+!docker/README.mddocs/
+
+docs/*.log
+
+*.log*.tmp
+
+*.tmp.DS_Store
+
+.DS_Store.env.local
+
+.env.local.idea/
+
+.idea/*.iml
+
+*.imlnode_modules/
+
+node_modules/# Excluir solo las clases compiladas, no el JAR
+
+target/classes/
+
+# Excluir solo las clases compiladas, no el JARtarget/generated-sources/
+
+target/classes/target/maven-status/
+
+target/generated-sources/target/maven-archiver/
+
+target/maven-status/
+target/maven-archiver/
+target/surefire-reports/
+target/test-classes/
+
+# Tests
+src/test/
+*.test.yml
+
+# GitHub
+.github/
+
+# VS Code
+.vscode/
+
+# NetBeans
+nbproject/

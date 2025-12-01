@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+    
+    <display-name>FarmaControl API</display-name>
+    <description>API REST para sistema de control de farmacia</description>
+    
+    <!-- Configuración de inicio de la aplicación -->
+    <context-param>
+        <param-name>application.name</param-name>
+        <param-value>FarmaControl API</param-value>
+    </context-param>
+    
+    <!-- Filtro CORS para todas las rutas -->
+    <filter>
+        <filter-name>CORSFilter</filter-name>
+        <filter-class>filter.CORSFilter</filter-class>
+    </filter>
+    
+    <filter-mapping>
+        <filter-name>CORSFilter</filter-name>
+        <url-pattern>/api/*</url-pattern>
+    </filter-mapping>
+    
+    <!-- Filtro JWT para autenticación -->
+    <filter>
+        <filter-name>JwtAuthenticationFilter</filter-name>
+        <filter-class>filter.JwtAuthenticationFilter</filter-class>
+    </filter>
+    
+    <filter-mapping>
+        <filter-name>JwtAuthenticationFilter</filter-name>
+        <url-pattern>/api/productos/*</url-pattern>
+        <url-pattern>/api/ventas/*</url-pattern>
+        <url-pattern>/api/compras/*</url-pattern>
+        <url-pattern>/api/clientes/*</url-pattern>
+        <url-pattern>/api/proveedores/*</url-pattern>
+        <url-pattern>/api/categorias/*</url-pattern>
+        <url-pattern>/api/roles/*</url-pattern>
+        <url-pattern>/api/usuarios/*</url-pattern>
+        <url-pattern>/api/reportes/*</url-pattern>
+    </filter-mapping>
+    
+    <!-- Servlet: Roles -->
+    <servlet>
+        <servlet-name>RoleServlet</servlet-name>
+        <servlet-class>routes.RoleServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>RoleServlet</servlet-name>
+        <url-pattern>/api/roles</url-pattern>
+        <url-pattern>/api/roles/*</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Servlet: Categorías -->
+    <servlet>
+        <servlet-name>CategoriaServlet</servlet-name>
+        <servlet-class>routes.CategoriaServlet</servlet-class>
+        <load-on-startup>2</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>CategoriaServlet</servlet-name>
+        <url-pattern>/api/categorias</url-pattern>
+        <url-pattern>/api/categorias/*</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Servlet: Productos -->
+    <servlet>
+        <servlet-name>ProductoServlet</servlet-name>
+        <servlet-class>routes.ProductoServlet</servlet-class>
+        <load-on-startup>3</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>ProductoServlet</servlet-name>
+        <url-pattern>/api/productos</url-pattern>
+        <url-pattern>/api/productos/*</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Servlet: Clientes -->
+    <servlet>
+        <servlet-name>ClienteServlet</servlet-name>
+        <servlet-class>routes.ClienteServlet</servlet-class>
+        <load-on-startup>4</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>ClienteServlet</servlet-name>
+        <url-pattern>/api/clientes</url-pattern>
+        <url-pattern>/api/clientes/*</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Servlet: Ventas -->
+    <servlet>
+        <servlet-name>VentaServlet</servlet-name>
+        <servlet-class>routes.VentaServlet</servlet-class>
+        <load-on-startup>5</load-on-startup>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>VentaServlet</servlet-name>
+        <url-pattern>/api/ventas</url-pattern>
+        <url-pattern>/api/ventas/*</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Página de inicio por defecto -->
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+    </welcome-file-list>
+    
+    <!-- Configuración de errores -->
+    <error-page>
+        <error-code>404</error-code>
+        <location>/error/404.html</location>
+    </error-page>
+    
+    <error-page>
+        <error-code>500</error-code>
+        <location>/error/500.html</location>
+    </error-page>
+    
+    <!-- Configuración de sesión -->
+    <session-config>
+        <session-timeout>30</session-timeout>
+        <cookie-config>
+            <http-only>true</http-only>
+            <secure>false</secure>
+        </cookie-config>
+    </session-config>
+    
+    <!-- Configuración de seguridad -->
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>API Resources</web-resource-name>
+            <url-pattern>/api/*</url-pattern>
+            <http-method>GET</http-method>
+            <http-method>POST</http-method>
+            <http-method>PUT</http-method>
+            <http-method>DELETE</http-method>
+            <http-method>OPTIONS</http-method>
+        </web-resource-collection>
+    </security-constraint>
+    
+</web-app>

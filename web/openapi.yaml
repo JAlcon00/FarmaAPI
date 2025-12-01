@@ -1,0 +1,1050 @@
+openapi: 3.0.3
+info:
+  title: FarmaControl API
+  version: 1.0.0
+  description: |
+    API REST completa para gestión de farmacias con control de inventario, ventas, compras y clientes.
+    
+    **Características principales:**
+    - Gestión de productos con control de stock
+    - Registro de ventas con descuentos e impuestos
+    - Gestión de compras a proveedores
+    - Administración de clientes
+    - Sistema de roles y permisos (ADMIN, VENDEDOR, CAJERO)
+    - Autenticación JWT con refresh tokens
+    - Auditoría completa de operaciones
+    - Rate limiting y seguridad
+    
+    **Autenticación:**
+    Usa el endpoint `/api/auth/login` para obtener un token JWT. Incluye el token en el header:
+    ```
+    Authorization: Bearer {tu-token-jwt}
+    ```
+  contact:
+    name: FarmaControl Support
+    email: soporte@farmacontrol.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:8080
+    description: Servidor de desarrollo local
+  - url: https://api.farmacontrol.com
+    description: Servidor de producción
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      description: Autenticar usuario y obtener tokens JWT (access + refresh)
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@farmacontrol.com
+                password:
+                  type: string
+                  format: password
+                  example: Admin123!
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken:
+                    type: string
+                  usuario:
+                    $ref: '#/components/schemas/Usuario'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  
+  /api/productos:
+    get:
+      tags:
+        - Productos
+      summary: Listar todos los productos
+      description: Obtiene la lista completa de productos con stock y categoría
+      operationId: getProductos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: estado
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [ACTIVO, INACTIVO, DESCONTINUADO]
+        - name: categoriaId
+          in: query
+          description: Filtrar por categoría
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de productos obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Producto'
+              examples:
+                productos:
+                  value:
+                    - id: 1
+                      nombre: Paracetamol 500mg
+                      descripcion: Analgésico y antipirético
+                      precio: 45.50
+                      stock: 150
+                      estado: ACTIVO
+                      categoria:
+                        id: 1
+                        nombre: Analgésicos
+                    - id: 2
+                      nombre: Ibuprofeno 400mg
+                      descripcion: Antiinflamatorio no esteroideo
+                      precio: 65.00
+                      stock: 200
+                      estado: ACTIVO
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Productos
+      summary: Crear nuevo producto
+      description: Registra un nuevo producto en el inventario
+      operationId: createProducto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoDTO'
+            examples:
+              nuevo-producto:
+                value:
+                  nombre: Aspirina 100mg
+                  descripcion: Antiagregante plaquetario
+                  precio: 35.00
+                  stock: 100
+                  categoriaId: 1
+                  estado: ACTIVO
+      responses:
+        '201':
+          description: Producto creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Producto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/ventas:
+    get:
+      tags:
+        - Ventas
+      summary: Listar todas las ventas
+      description: Obtiene el historial completo de ventas con información de cliente y usuario
+      operationId: getVentas
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fechaInicio
+          in: query
+          description: Fecha inicial (formato YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: fechaFin
+          in: query
+          description: Fecha final (formato YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: estado
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [COMPLETADA, PENDIENTE, CANCELADA]
+      responses:
+        '200':
+          description: Lista de ventas obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Venta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Ventas
+      summary: Crear venta con detalles
+      description: |
+        Registra una nueva venta con sus productos. La operación es **atómica**: 
+        si falla algún detalle, se revierte toda la venta automáticamente.
+        
+        **Notas importantes:**
+        - El stock se descuenta automáticamente vía trigger de base de datos
+        - Se validan todos los DTOs antes de procesar
+        - Se registra auditoría completa de la operación
+      operationId: createVenta
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VentaDTO'
+            examples:
+              venta-efectivo:
+                summary: Venta en efectivo
+                value:
+                  clienteId: 5
+                  usuarioId: 1
+                  subtotal: 110.50
+                  descuento: 10.00
+                  impuestos: 16.08
+                  total: 116.58
+                  metodoPago: EFECTIVO
+                  estado: COMPLETADA
+                  observaciones: Cliente frecuente
+                  detalles:
+                    - productoId: 1
+                      nombreProducto: Paracetamol 500mg
+                      cantidad: 2
+                      precioUnitario: 45.50
+                      subtotal: 91.00
+                    - productoId: 3
+                      nombreProducto: Vitamina C
+                      cantidad: 1
+                      precioUnitario: 19.50
+                      subtotal: 19.50
+      responses:
+        '201':
+          description: Venta creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/compras:
+    get:
+      tags:
+        - Compras
+      summary: Listar todas las compras
+      description: Obtiene el historial de compras a proveedores
+      operationId: getCompras
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: proveedorId
+          in: query
+          description: Filtrar por proveedor
+          schema:
+            type: integer
+        - name: estado
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [PENDIENTE, RECIBIDA, CANCELADA]
+      responses:
+        '200':
+          description: Lista de compras obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Compra'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Compras
+      summary: Crear compra con detalles
+      description: |
+        Registra una nueva compra a proveedor. La operación es **atómica**.
+        
+        **Notas importantes:**
+        - El stock se incrementa automáticamente vía trigger de base de datos
+        - Solo usuarios con rol ADMIN pueden crear compras
+        - Se registra auditoría completa
+      operationId: createCompra
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompraDTO'
+            examples:
+              compra-proveedor:
+                summary: Compra a proveedor
+                value:
+                  proveedorId: 3
+                  usuarioId: 1
+                  subtotal: 5000.00
+                  impuestos: 800.00
+                  total: 5800.00
+                  estado: PENDIENTE
+                  observaciones: Pedido mensual
+                  detalles:
+                    - productoId: 1
+                      cantidad: 100
+                      precioUnitario: 30.00
+                      subtotal: 3000.00
+                    - productoId: 2
+                      cantidad: 50
+                      precioUnitario: 40.00
+                      subtotal: 2000.00
+      responses:
+        '201':
+          description: Compra creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Compra'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/clientes:
+    get:
+      tags:
+        - Clientes
+      summary: Listar todos los clientes
+      description: Obtiene la lista completa de clientes registrados
+      operationId: getClientes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: estado
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [ACTIVO, INACTIVO, SUSPENDIDO]
+        - name: tipo
+          in: query
+          description: Filtrar por tipo
+          schema:
+            type: string
+            enum: [FRECUENTE, OCASIONAL, MAYORISTA, VIP]
+      responses:
+        '200':
+          description: Lista de clientes obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Clientes
+      summary: Crear nuevo cliente
+      description: Registra un nuevo cliente en el sistema
+      operationId: createCliente
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteDTO'
+            examples:
+              cliente-basico:
+                summary: Cliente básico
+                value:
+                  nombre: Juan
+                  apellido: Pérez
+                  telefono: "5512345678"
+                  tipo: OCASIONAL
+                  estado: ACTIVO
+              cliente-completo:
+                summary: Cliente con todos los datos
+                value:
+                  nombre: María
+                  apellido: González
+                  email: maria@example.com
+                  telefono: "5598765432"
+                  direccion: Av. Reforma 123, CDMX
+                  rfc: GOGM850101XXX
+                  fechaNacimiento: "1985-01-01"
+                  tipo: FRECUENTE
+                  estado: ACTIVO
+                  notas: Cliente preferencial con descuento
+      responses:
+        '201':
+          description: Cliente creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtenido del endpoint /api/auth/login.
+        
+        **Ejemplo de uso:**
+        ```
+        Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        ```
+  
+  responses:
+    BadRequest:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Bad Request
+            message: Parámetros inválidos en la solicitud
+            timestamp: "2025-11-07T10:30:00Z"
+    
+    Unauthorized:
+      description: No autenticado - Token inválido o expirado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized
+            message: Token JWT inválido o expirado
+            timestamp: "2025-11-07T10:30:00Z"
+    
+    Forbidden:
+      description: No autorizado - Sin permisos suficientes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Forbidden
+            message: No tienes permisos para realizar esta acción
+            timestamp: "2025-11-07T10:30:00Z"
+    
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Not Found
+            message: El recurso solicitado no existe
+            timestamp: "2025-11-07T10:30:00Z"
+    
+    ValidationError:
+      description: Error de validación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            error: Validation Error
+            message: Los datos proporcionados no cumplen con las validaciones
+            timestamp: "2025-11-07T10:30:00Z"
+            violations:
+              - field: nombre
+                message: El nombre es obligatorio
+              - field: precio
+                message: El precio debe ser mayor a 0
+  
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Tipo de error
+        message:
+          type: string
+          description: Mensaje descriptivo del error
+        timestamp:
+          type: string
+          format: date-time
+          description: Momento en que ocurrió el error
+    
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            violations:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+    
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Admin
+        apellido:
+          type: string
+          example: Sistema
+        email:
+          type: string
+          format: email
+          example: admin@farmacontrol.com
+        rol:
+          type: string
+          enum: [ADMIN, VENDEDOR, CAJERO]
+          example: ADMIN
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO]
+          example: ACTIVO
+    
+    Producto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: Paracetamol 500mg
+        descripcion:
+          type: string
+          maxLength: 500
+          example: Analgésico y antipirético de uso general
+        precio:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 99999.99
+          example: 45.50
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 999999
+          example: 150
+        stockMinimo:
+          type: integer
+          example: 10
+        categoriaId:
+          type: integer
+          example: 1
+        categoria:
+          type: object
+          properties:
+            id:
+              type: integer
+            nombre:
+              type: string
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO, DESCONTINUADO]
+          example: ACTIVO
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProductoDTO:
+      type: object
+      required: [nombre, precio, stock]
+      properties:
+        nombre:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: Ibuprofeno 400mg
+        descripcion:
+          type: string
+          maxLength: 500
+          example: Antiinflamatorio no esteroideo
+        precio:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 99999.99
+          example: 65.00
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 999999
+          example: 200
+        stockMinimo:
+          type: integer
+          minimum: 0
+          example: 20
+        categoriaId:
+          type: integer
+          example: 1
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO, DESCONTINUADO]
+          default: ACTIVO
+          example: ACTIVO
+    
+    Venta:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        fecha:
+          type: string
+          format: date-time
+          example: "2025-11-07T10:30:00Z"
+        clienteId:
+          type: integer
+          nullable: true
+          example: 5
+        cliente:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            nombre:
+              type: string
+            apellido:
+              type: string
+        usuarioId:
+          type: integer
+          example: 1
+        usuario:
+          type: object
+          properties:
+            id:
+              type: integer
+            nombre:
+              type: string
+            apellido:
+              type: string
+        subtotal:
+          type: number
+          format: double
+          example: 110.50
+        descuento:
+          type: number
+          format: double
+          example: 10.00
+        impuestos:
+          type: number
+          format: double
+          example: 16.08
+        total:
+          type: number
+          format: double
+          example: 116.58
+        metodoPago:
+          type: string
+          enum: [EFECTIVO, TARJETA, TRANSFERENCIA, CREDITO]
+          example: EFECTIVO
+        estado:
+          type: string
+          enum: [COMPLETADA, PENDIENTE, CANCELADA]
+          example: COMPLETADA
+        observaciones:
+          type: string
+          maxLength: 500
+          example: Cliente frecuente
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    VentaDTO:
+      type: object
+      required: [usuarioId, subtotal, impuestos, total, metodoPago, detalles]
+      properties:
+        clienteId:
+          type: integer
+          nullable: true
+          description: ID del cliente (opcional para ventas sin cliente registrado)
+          example: 5
+        usuarioId:
+          type: integer
+          description: ID del usuario que registra la venta
+          example: 1
+        subtotal:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 999999.99
+          example: 110.50
+        descuento:
+          type: number
+          format: double
+          minimum: 0.00
+          maximum: 99999.99
+          default: 0.00
+          example: 10.00
+        impuestos:
+          type: number
+          format: double
+          minimum: 0.00
+          maximum: 99999.99
+          example: 16.08
+        total:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 999999.99
+          example: 116.58
+        metodoPago:
+          type: string
+          enum: [EFECTIVO, TARJETA, TRANSFERENCIA, CREDITO]
+          example: EFECTIVO
+        estado:
+          type: string
+          enum: [COMPLETADA, PENDIENTE, CANCELADA]
+          default: COMPLETADA
+          example: COMPLETADA
+        observaciones:
+          type: string
+          maxLength: 500
+          example: Cliente frecuente
+        detalles:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DetalleVentaDTO'
+    
+    DetalleVentaDTO:
+      type: object
+      required: [productoId, nombreProducto, cantidad, precioUnitario, subtotal]
+      properties:
+        productoId:
+          type: integer
+          description: ID del producto vendido
+          example: 1
+        nombreProducto:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: Paracetamol 500mg
+        cantidad:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          example: 2
+        precioUnitario:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 99999.99
+          example: 45.50
+        subtotal:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 999999.99
+          example: 91.00
+    
+    Compra:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        fecha:
+          type: string
+          format: date-time
+          example: "2025-11-07T09:00:00Z"
+        proveedorId:
+          type: integer
+          example: 3
+        proveedor:
+          type: object
+          properties:
+            id:
+              type: integer
+            nombre:
+              type: string
+        usuarioId:
+          type: integer
+          example: 1
+        usuario:
+          type: object
+          properties:
+            id:
+              type: integer
+            nombre:
+              type: string
+            apellido:
+              type: string
+        subtotal:
+          type: number
+          format: double
+          example: 5000.00
+        impuestos:
+          type: number
+          format: double
+          example: 800.00
+        total:
+          type: number
+          format: double
+          example: 5800.00
+        estado:
+          type: string
+          enum: [PENDIENTE, RECIBIDA, CANCELADA]
+          example: PENDIENTE
+        observaciones:
+          type: string
+          maxLength: 500
+          example: Pedido mensual
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    CompraDTO:
+      type: object
+      required: [proveedorId, usuarioId, subtotal, impuestos, total, detalles]
+      properties:
+        proveedorId:
+          type: integer
+          description: ID del proveedor
+          example: 3
+        usuarioId:
+          type: integer
+          description: ID del usuario que registra la compra
+          example: 1
+        subtotal:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 9999999.99
+          example: 5000.00
+        impuestos:
+          type: number
+          format: double
+          minimum: 0.00
+          maximum: 999999.99
+          example: 800.00
+        total:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 9999999.99
+          example: 5800.00
+        estado:
+          type: string
+          enum: [PENDIENTE, RECIBIDA, CANCELADA]
+          default: PENDIENTE
+          example: PENDIENTE
+        observaciones:
+          type: string
+          maxLength: 500
+          example: Pedido mensual
+        detalles:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/DetalleCompraDTO'
+    
+    DetalleCompraDTO:
+      type: object
+      required: [productoId, cantidad, precioUnitario, subtotal]
+      properties:
+        productoId:
+          type: integer
+          description: ID del producto comprado
+          example: 1
+        cantidad:
+          type: integer
+          minimum: 1
+          maximum: 50000
+          example: 100
+        precioUnitario:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 99999.99
+          example: 30.00
+        subtotal:
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 9999999.99
+          example: 3000.00
+    
+    Cliente:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        nombre:
+          type: string
+          example: Juan
+        apellido:
+          type: string
+          example: Pérez
+        email:
+          type: string
+          format: email
+          example: juan.perez@example.com
+        telefono:
+          type: string
+          pattern: '^[0-9]{10}$'
+          example: "5512345678"
+        direccion:
+          type: string
+          maxLength: 300
+          example: Av. Reforma 123, CDMX
+        rfc:
+          type: string
+          pattern: '^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$'
+          example: PEPJ900101XXX
+        fechaNacimiento:
+          type: string
+          format: date
+          example: "1990-01-01"
+        tipo:
+          type: string
+          enum: [FRECUENTE, OCASIONAL, MAYORISTA, VIP]
+          example: FRECUENTE
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO, SUSPENDIDO]
+          example: ACTIVO
+        notas:
+          type: string
+          maxLength: 500
+          example: Cliente preferencial
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    ClienteDTO:
+      type: object
+      required: [nombre, apellido]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 100
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$'
+          example: María
+        apellido:
+          type: string
+          minLength: 2
+          maxLength: 100
+          pattern: '^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$'
+          example: González
+        email:
+          type: string
+          format: email
+          maxLength: 150
+          example: maria@example.com
+        telefono:
+          type: string
+          pattern: '^[0-9]{10}$'
+          example: "5598765432"
+        direccion:
+          type: string
+          maxLength: 300
+          example: Av. Reforma 123, CDMX
+        rfc:
+          type: string
+          pattern: '^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$'
+          minLength: 12
+          maxLength: 13
+          example: GOGM850101XXX
+        fechaNacimiento:
+          type: string
+          format: date
+          example: "1985-01-01"
+        tipo:
+          type: string
+          enum: [FRECUENTE, OCASIONAL, MAYORISTA, VIP]
+          default: OCASIONAL
+          example: FRECUENTE
+        estado:
+          type: string
+          enum: [ACTIVO, INACTIVO, SUSPENDIDO]
+          default: ACTIVO
+          example: ACTIVO
+        notas:
+          type: string
+          maxLength: 500
+          example: Cliente preferencial con descuento

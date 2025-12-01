@@ -1,0 +1,124 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-plan.yml'
+
+env:
+  TF_VERSION: '1.6.0'
+
+jobs:
+  plan:
+    name: 📋 Terraform Plan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☁️ Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: 📦 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: 🔐 Create terraform.tfvars
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars <<EOF
+          project_id  = "${{ secrets.GCP_PROJECT_ID }}"
+          region      = "${{ secrets.GCP_REGION || 'us-central1' }}"
+          zone        = "${{ secrets.GCP_ZONE || 'us-central1-a' }}"
+          environment = "${{ secrets.ENVIRONMENT || 'production' }}"
+          
+          machine_type   = "${{ secrets.MACHINE_TYPE || 'e2-medium' }}"
+          boot_disk_size = ${{ secrets.BOOT_DISK_SIZE || 20 }}
+          
+          db_name     = "${{ secrets.DB_NAME || 'farmacontrol' }}"
+          db_user     = "${{ secrets.DB_USER || 'farmacontrol_user' }}"
+          db_password = "PLACEHOLDER_FOR_PLAN"
+          mysql_root_password = "PLACEHOLDER_FOR_PLAN"
+          
+          jwt_secret = "PLACEHOLDER_FOR_PLAN"
+          
+          github_repo   = "${{ github.server_url }}/${{ github.repository }}.git"
+          github_branch = "${{ github.ref_name }}"
+          EOF
+
+      - name: 🔧 Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: 🎨 Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: ✅ Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: 📋 Terraform Plan
+        id: plan
+        working-directory: terraform
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan_output.txt
+
+      - name: 💬 Comment PR with Plan
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan_output.txt', 'utf8');
+            const truncatedPlan = plan.length > 65000 ? plan.substring(0, 65000) + '\n\n... (truncated)' : plan;
+            
+            const output = `## 🏗️ Terraform Plan
+            
+            <details>
+            <summary>Show Plan</summary>
+            
+            \`\`\`hcl
+            ${truncatedPlan}
+            \`\`\`
+            
+            </details>
+            
+            **Pusher**: @${{ github.actor }}
+            **Action**: \`${{ github.event_name }}\`
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: 📤 Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+          retention-days: 7
+
+      - name: 📊 Plan Summary
+        run: |
+          echo "## 📋 Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Plan generated successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Review the plan in the PR comment above." >> $GITHUB_STEP_SUMMARY

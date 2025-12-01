@@ -1,0 +1,17 @@
+# Archivos innecesarios para Docker
+.git
+.gitignore
+*.md
+docs/
+*.log
+*.tmp
+.DS_Store
+.env.local
+.idea/
+*.iml
+node_modules/
+# Excluir solo las clases compiladas, no el JAR
+target/classes/
+target/generated-sources/
+target/maven-status/
+target/maven-archiver/

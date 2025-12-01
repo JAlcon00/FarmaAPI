@@ -1,0 +1,91 @@
+# ============================================================================
+# TERRAFORM VARIABLES - VALORES DE EJEMPLO
+# ============================================================================
+# ⚠️  IMPORTANTE: 
+# 1. Copiar este archivo a terraform.tfvars
+# 2. Reemplazar TODOS los valores de ejemplo con valores reales
+# 3. NUNCA commitear terraform.tfvars a Git (está en .gitignore)
+# ============================================================================
+
+# ============================================================================
+# GOOGLE CLOUD PROJECT
+# ============================================================================
+
+project_id  = "mi-proyecto-gcp-123456"  # ← Cambiar por tu Project ID
+region      = "us-central1"
+zone        = "us-central1-a"
+environment = "production"
+
+# ============================================================================
+# COMPUTE ENGINE
+# ============================================================================
+
+machine_type   = "e2-medium"    # 2 vCPU, 4 GB RAM (~$24/mes)
+boot_disk_size = 20             # GB
+boot_disk_type = "pd-balanced"  # Balance costo/rendimiento
+
+# ============================================================================
+# NETWORK & SECURITY
+# ============================================================================
+
+# Permitir acceso desde cualquier IP (usar con cuidado en producción)
+allowed_ips = ["0.0.0.0/0"]
+
+# O restringir a IPs específicas (recomendado):
+# allowed_ips = [
+#   "YOUR_IP/32",        # Tu IP personal
+#   "OFFICE_IP/24",      # Red de oficina
+#   "123.45.67.89/32"    # Otra IP específica
+# ]
+
+# ============================================================================
+# DATABASE
+# ============================================================================
+
+# Usar MySQL en Docker (gratis, incluido en la VM)
+use_cloud_sql = false
+
+# O usar Cloud SQL (costo adicional ~$7-50/mes, más robusto para producción)
+# use_cloud_sql = true
+# db_tier       = "db-f1-micro"  # Tier más económico
+
+db_name     = "farmacontrol"
+db_user     = "farmacontrol_user"
+db_password = "CAMBIAR_PASSWORD_SEGURO_123!"  # ← CAMBIAR
+
+mysql_root_password = "CAMBIAR_ROOT_PASSWORD_456!"  # ← CAMBIAR
+
+# ============================================================================
+# JWT CONFIGURATION
+# ============================================================================
+
+# Generar con: openssl rand -base64 64
+jwt_secret = "CAMBIAR_JWT_SECRET_AQUI_USAR_OPENSSL_RAND_BASE64_64"  # ← CAMBIAR
+
+jwt_expiration         = 86400000   # 24 horas
+jwt_refresh_expiration = 604800000  # 7 días
+
+# ============================================================================
+# APPLICATION
+# ============================================================================
+
+server_port = 8080
+
+# ============================================================================
+# GIT REPOSITORY
+# ============================================================================
+
+github_repo   = "https://github.com/TU_USUARIO/farmacontrol-api.git"  # ← CAMBIAR
+github_branch = "main"
+
+# ============================================================================
+# DNS (OPCIONAL)
+# ============================================================================
+
+# Dejar vacío si no tienes dominio
+domain_name      = ""
+dns_managed_zone = ""
+
+# Si tienes dominio en Cloud DNS:
+# domain_name      = "farmacontrol.com"
+# dns_managed_zone = "farmacontrol-zone"

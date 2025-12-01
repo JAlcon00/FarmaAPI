@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: farmacontrol-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: farmacontrol
+      MYSQL_USER: farmacontrol_user
+      MYSQL_PASSWORD: farmacontrol_pass
+    ports:
+      - "3307:3306"  # Puerto 3307 en host para no conflictuar con MySQL local
+    volumes:
+      - ./src/java/database_schema_test.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - mysql_test_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - farmacontrol-test
+
+networks:
+  farmacontrol-test:
+    driver: bridge
+
+volumes:
+  mysql_test_data:
+    driver: local
